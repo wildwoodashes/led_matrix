@@ -13,7 +13,8 @@ from neopixel import *
 from frame_buffer import frameBuffer
 
 #Import datareader for fetching stock info
-import quandl 
+import urllib.request
+import json
 import sys
 from datetime import datetime, date, timedelta
 
@@ -37,8 +38,23 @@ fb = frameBuffer(26, 15)
 #---------------------------------------------------------------------
 # Stock fetch functions
 #---------------------------------------------------------------------
+def stockGet(symbol):
+    url = "https://cloud.iexapis.com/stable/stock/"
+    auth = "/quote?token="
+    with open('token.txt') as f:
+        token = f.readline()
+
+
+    command = url + symbol + auth + token.strip()
+    quote = urllib.request.urlopen(command).read().decode('utf-8')
+    return quote
+
+def stockPrice(symbol):
+    data = json.loads(stockGet(symbol))
+    return str(data["latestPrice"])
+
 #Need to make stocks dyanmic. Will add to SQL later
-tickers = ['TSLA', 'AMZN', 'FTV', 'BDC']
+tickers = ['TSLA', 'AMZN', 'FTV', 'BDC', 'AAPL']
 today = datetime.today()
 if(today.isoweekday() == 6):
 	close = today-timedelta(days=1)
@@ -47,16 +63,10 @@ elif(today.isoweekday() == 7):
 else:
 	close = today
 close_string = close.strftime('%Y-%m-%d')
-quandl.ApiConfig.api_key = "QaBJWU-nma8b6HTSzr-s"
-quotes = quandl.get_table('WIKI/PRICES', ticker = tickers,
-                        qopts = { 'columns': ['ticker', 'adj_close'] }, 
-                        date = { 'gte': close_string }, 
-                        paginate=True)
-quotes.set_index('ticker')
-stocks = dict()
-#for i in range(len(tickers)):
-	#stocks[quotes.iloc[i][0]] = quotes.iloc[i][1]
-print(stocks)
+
+for stock in tickers:
+    current_price = stockPrice(stock)
+    print(stock + " = " + current_price)
 
 #---------------------------------------------------------------------
 # Webserver functions
@@ -69,6 +79,8 @@ db = sqlite3.connect('database.db')
 cursor=db.cursor()
 cursor.execute('''UPDATE dispstat SET status = ? where display = ?''', (0,0))
 db.close()
+
+
 
 def server():
 	@app.route('/')
@@ -110,8 +122,10 @@ def getStatus(disp):
 
 if __name__ == '__main__':
 	web_process.start()
-	fb.writeString('Xmas Test', 0)
-	fb.writeString('Test', 1)
+	#fb.writeString('Xmas Test', 0)
+	#fb.writeString('Test', 1)
+	fb.writeString('AAPL', 0)
+	fb.writeString(stockPrice('AAPL'), 1)
 	while(True):
 		enable = getStatus(0)
 		fb.drawDisplay(enable)
