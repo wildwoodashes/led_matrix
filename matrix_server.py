@@ -16,6 +16,9 @@ from frame_buffer import frameBuffer
 #Import stock ticker functions
 from stock_ticker import  stockTicker
 
+#Import audioVisualizer
+from audioVis import  audioVis
+
 from datetime import datetime, date, timedelta
 
 # LED strip configuration:
@@ -55,6 +58,9 @@ st = stockTicker(tickers)
 #    current_price = st.stockPrice(stock)
 #    print(stock + " = " + current_price, st.isStockUp(stock))
 
+# Create audio visualizer object
+av = audioVis()
+
 #---------------------------------------------------------------------
 # Webserver functions
 #---------------------------------------------------------------------
@@ -67,7 +73,7 @@ db = sqlite3.connect('database.db')
 cursor=db.cursor()
 #kludge, only use to add new column once
 cursor.execute('''CREATE TABLE IF NOT EXISTS dispstat ( display INTEGER PRIMARY KEY AUTOINCREMENT, status INTEGER, mode INTEGER)''')
-cursor.execute('''INSERT INTO dispstat VALUES (0, 1, 0)''')
+cursor.execute('''INSERT INTO dispstat VALUES (0, 1, 1)''')
 db.commit()
 db.close()
 
@@ -88,10 +94,17 @@ def server():
         return render_template('page.html', name=name)
 
     @app.route('/stock_ticker')
-    def setDispMode():
+    def setDispModeST():
         print("Use Stock Ticker Mode")
-        setMode(0)
+        setMode(STOCK_TICKER_MODE)
         return render_template('page.html', name='Stock Ticker')
+
+    @app.route('/audioVis')
+    def setDispModeVis():
+        print("Use Audio Vis Mode")
+        setMode(AUDIO_VISULIZER_MODE)
+        return render_template('page.html', name='Audio Visulizer')
+
 
 
     app.run(debug=False, host='0.0.0.0')
@@ -122,7 +135,7 @@ def getStatus():
 def setMode(mode):
     db = sqlite3.connect('database.db')
     cursor=db.cursor()
-    cursor.execute('''UPDATE dispstat SET mode = ? where display= ?''', (DISPLAY,mode))
+    cursor.execute('''UPDATE dispstat SET mode = ? where display= ?''', (mode, DISPLAY))
     db.commit()
     db.close()
 
@@ -130,11 +143,12 @@ def setMode(mode):
 def getMode():
     db = sqlite3.connect('database.db')
     cursor=db.cursor()
-    cursor.execute('''SELECT mode FROM dispstat WHERE mode=?''', (DISPLAY,))
+    cursor.execute('''SELECT mode FROM dispstat WHERE display=?''', (DISPLAY,))
     mode_stat = cursor.fetchone()
     db.close()
     return mode_stat[0]
 
+import csv
 
 if __name__ == '__main__':
     web_process.start()
@@ -147,7 +161,9 @@ if __name__ == '__main__':
     stock_index = 2
     stock_string = tickers[stock_index]
     st.displayStock(stock_string, fb)
+    max = 0
 
+    program_starts = time.time()
     while(True):
         enable = getStatus()
         fb.drawDisplay(enable)
@@ -168,6 +184,32 @@ if __name__ == '__main__':
                 #print(stock_string, stockPrice(stock_string))
                 st.displayStock(stock_string, fb)
                 seconds = 0
+
+        elif(getMode() == AUDIO_VISULIZER_MODE):
+            fb.clearString(0)
+            fb.clearString(1)
+            # Other modes not supported yet
+            time.sleep(0.01)
+            data = av.updateBars()
+            #if(data>max):
+            #    max = data
+            #print(str(max))
+
+            fb.updateAudBars(data)
+
+            #with open('test.csv', 'a+', newline='') as myfile:
+            #     wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+            #     wr.writerow(data)
+            #largest = 0
+            #bin = 0
+            #for i in range(len(data)):
+            #    if(data[i] > largest):
+            #        largest = data[i]
+            #        bin = i
+            #print("largest = " + str(largest) + " bin = " + str(bin))p
+            now = time.time()
+            #print("It has been {0} seconds since the loop started".format(now - program_starts))
+
         else:
             # Other modes not supported yet
             time.sleep(0.5)

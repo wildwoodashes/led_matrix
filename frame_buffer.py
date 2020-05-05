@@ -143,6 +143,18 @@ class frameBuffer():
         
         return
 
+    def updateAudBars(self, bar_data):
+        for i in range(len(bar_data)):
+            #print("index = " + str(i) + ". data = " + str(bar_data[i]))
+            bar = [[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]] 
+            for j in reversed(range(len(bar))):
+                if(bar_data[i] > j):
+                    bar[(self.y_total-1)-j][0] = 1
+                else:
+                    bar[self.y_total-j][0] = 0
+            self.insertData(self.fb, i, 0, bar, 1)
+
+
     def drawPixel(self, x, y):
         if(self.fb[y][x]):
             if(y%2 == 0):
